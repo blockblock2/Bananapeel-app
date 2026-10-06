@@ -37,3 +37,31 @@ test("toApp includes self-removal notices from BananaPeel", async () => {
   const app = await gh.toApp("a/b");
   assert.deepEqual(app.notices, ["expires 7d after installing", "one-time app: removes itself after you close it"]);
 });
+
+test("unlisted apps are hidden from search but can still be looked up", async () => {
+  global.fetch = async (url) => {
+    const u = String(url);
+    if (u.includes("search/repositories")) return { ok: true, json: async () => ({ items: [{ full_name: "a/hidden", stargazers_count: 0 }, { full_name: "a/shown", stargazers_count: 0 }] }) };
+    if (u.includes("a/hidden/")) return { ok: true, json: async () => ({ name: "hidden", main: "index.html", unlisted: true }) };
+    return { ok: true, json: async () => ({ name: "shown", main: "index.html" }) };
+  };
+  delete process.env.GITHUB_TOKEN;
+  assert.deepEqual((await gh.searchApps("")).map((a) => a.name), ["shown"]);
+  assert.equal((await gh.toApp("a/hidden")).name, "hidden");
+});
+
+test("locked and priced apps are flagged with notices", async () => {
+  global.fetch = async () => ({ ok: true, json: async () => ({ name: "p", main: "index.html", locked: true, price: 30 }) });
+  const app = await gh.toApp("a/p");
+  assert.equal(app.locked, true);
+  assert.equal(app.price, 30);
+  assert.equal(app.notices.length, 2);
+});
+
+test("@user/app is an account upload that needs a PIN, without a network call", async () => {
+  global.fetch = async () => { throw new Error("should not fetch"); };
+  const app = await gh.toApp("@someone/cool-app");
+  assert.equal(app.needsPin, true);
+  assert.equal(gh.isAccountSpec("@someone/cool-app"), true);
+  assert.equal(gh.isAccountSpec("someone/cool-app"), false);
+});

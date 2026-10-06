@@ -32,7 +32,7 @@ function appCard(app) {
   btn.onclick = () => install(app, btn);
   const repo = el("a", { href: "#", textContent: app.spec });
   repo.onclick = (e) => { e.preventDefault(); window.store.openRepo(app.spec); };
-  const meta = el("div", { className: "meta" }, repo, ` · v${app.version}` + (app.stars ? ` · ★ ${app.stars}` : ""));
+  const meta = el("div", { className: "meta" }, repo, (app.version ? ` · v${app.version}` : "") + (app.stars ? ` · ★ ${app.stars}` : ""));
   const warn = (app.notices || []).map((n) => el("div", { className: "meta" }, `⏳ ${n}`));
   return card({ icon: app.icon, title: app.title, desc: app.description, meta: el("div", {}, meta, ...warn), actions: [btn] });
 }
@@ -43,16 +43,43 @@ async function install(app, btn) {
     return;
   }
   banner("");
+  const opts = {};
+  if (app.account) {
+    opts.pin = await ask({ title: `PIN for ${app.spec}`, text: "Ask the author for the 6–10 digit PIN.", input: "PIN", ok: "Install" });
+    if (!opts.pin) return;
+  }
+  if (app.locked) {
+    opts.code = await ask({ title: `${app.title} is locked`, text: "Enter the unlock code the author gave you.", input: "XXXX-XXXX-XXXX-XXXX", ok: "Unlock & install" });
+    if (!opts.code) return;
+  }
+  if (app.price && !(await ask({ title: `Buy ${app.title}?`, text: `It costs ${app.price} BananaCoins (pretend coins, not real money). You only pay once.`, ok: `Buy for ${app.price} 🍌` }))) return;
   busy.add(app.spec);
   btn.disabled = true;
   btn.textContent = "Installing…";
   $("log").hidden = false;
   $("log").textContent = "";
-  const res = await window.store.install(app.spec);
+  const res = await window.store.install(app.spec, opts);
   busy.delete(app.spec);
   banner(res.ok ? `Installed ${app.title}.` : res.error, !res.ok);
   await refreshInstalled();
   renderResults();
+}
+
+// Electron has no window.prompt/confirm, so ask in a small dialog. Resolves to the typed text (or true), or null if cancelled.
+function ask({ title, text, input, ok = "OK" }) {
+  const dlg = $("ask"), box = $("ask-input");
+  $("ask-title").textContent = title;
+  $("ask-text").textContent = text || "";
+  box.hidden = !input; box.value = ""; box.placeholder = input || "";
+  $("ask-ok").textContent = ok;
+  return new Promise((resolve) => {
+    const done = (v) => { dlg.close(); resolve(v); };
+    $("ask-form").onsubmit = (e) => { e.preventDefault(); done(input ? box.value.trim() || null : true); };
+    $("ask-cancel").onclick = () => done(null);
+    dlg.oncancel = (e) => { e.preventDefault(); done(null); };
+    dlg.showModal();
+    if (input) box.focus();
+  });
 }
 
 function renderResults() {
@@ -85,7 +112,7 @@ function installedCard(a) {
 }
 
 // Looks like "owner/repo" or a github.com URL → install that repo directly.
-const looksLikeRepo = (s) => /^(https?:\/\/github\.com\/)?[\w.-]+\/[\w.-]+(@[\w./-]+)?(\.git)?\/?$/i.test(s.trim());
+const looksLikeRepo = (s) => /^(https?:\/\/github\.com\/)?@?[\w.-]+\/[\w.-]+(@[\w./-]+)?(\.git)?\/?$/i.test(s.trim());
 
 async function search(query) {
   banner("");

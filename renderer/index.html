@@ -36,6 +36,14 @@
     <p id="key-status" class="muted"></p>
   </section>
 </main>
+<dialog id="ask">
+  <form method="dialog" id="ask-form">
+    <h3 id="ask-title"></h3>
+    <p id="ask-text" class="muted"></p>
+    <input id="ask-input" autocomplete="off" hidden>
+    <div class="actions"><button value="cancel" type="button" id="ask-cancel">Cancel</button><button value="ok" class="primary" id="ask-ok">OK</button></div>
+  </form>
+</dialog>
 <pre id="log" hidden></pre>
 <script src="renderer.js"></script>
 </body>

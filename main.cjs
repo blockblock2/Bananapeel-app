@@ -31,7 +31,8 @@ handle("app:lookup", async (_e, input) => {
   if (!found) throw new Error(`${spec} isn't a BananaPeel app (no valid bananapeel.json).`);
   return found;
 });
-handle("app:install", (e, spec) => bp.install(String(spec), (text) => e.sender.send("install:log", spec, text)));
+handle("app:install", (e, spec, opts) => bp.install(String(spec), { code: opts?.code && String(opts.code), pin: opts?.pin && String(opts.pin) },
+  (text) => e.sender.send("install:log", spec, text)));
 handle("app:uninstall", (_e, name) => bp.uninstall(String(name)));
 handle("app:run", (_e, name) => bp.run(String(name)));
 handle("app:installed", async () => { await bp.sweepExpired(); return bp.installed(); });

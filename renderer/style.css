@@ -22,3 +22,5 @@ input { flex:1; font:inherit; padding:8px 12px; border-radius:8px; border:1px so
 .muted { color:var(--muted); }
 #banner { background:var(--accent); color:#2b2410; padding:8px 20px; } #banner.error { background:var(--bad); color:#fff; }
 #log { margin:0 20px 20px; padding:10px; max-height:160px; overflow:auto; background:var(--card); border:1px solid var(--line); border-radius:8px; font-size:12px; white-space:pre-wrap; }
+dialog { border:1px solid var(--line); border-radius:12px; background:var(--card); color:var(--fg); padding:18px; min-width:320px; }
+dialog::backdrop { background:rgba(0,0,0,.4); } dialog h3 { margin:0 0 6px; } dialog form { display:flex; flex-direction:column; gap:10px; margin:0; } dialog .actions { justify-content:flex-end; }
