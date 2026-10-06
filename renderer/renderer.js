@@ -79,7 +79,7 @@ function installedCard(a) {
     renderResults();
   };
   const meta = el("div", { className: "meta" }, `v${a.version} · ${a.language || "?"} · ${a.source}` + (a.windowed ? "" : " · runs in background"));
-  return card({ title: a.name, desc: a.description, meta, actions: [run, rm] });
+  return card({ icon: a.icon, title: a.title, desc: a.description, meta, actions: [run, rm] });
 }
 
 // Looks like "owner/repo" or a github.com URL → install that repo directly.
