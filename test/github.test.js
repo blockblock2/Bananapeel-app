@@ -31,3 +31,9 @@ test("searchApps keeps only repos with a valid bananapeel.json", async () => {
   assert.equal(apps[0].icon, "https://raw.githubusercontent.com/blockblock2/repro-app/HEAD/icon.png");
   assert.equal(apps[0].stars, 3);
 });
+
+test("toApp includes self-removal notices from BananaPeel", async () => {
+  global.fetch = async () => ({ ok: true, json: async () => ({ name: "t", main: "index.html", expires: "7d", uninstallAfterRun: true }) });
+  const app = await gh.toApp("a/b");
+  assert.deepEqual(app.notices, ["expires 7d after installing", "one-time app: removes itself after you close it"]);
+});

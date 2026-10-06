@@ -33,7 +33,8 @@ function appCard(app) {
   const repo = el("a", { href: "#", textContent: app.spec });
   repo.onclick = (e) => { e.preventDefault(); window.store.openRepo(app.spec); };
   const meta = el("div", { className: "meta" }, repo, ` · v${app.version}` + (app.stars ? ` · ★ ${app.stars}` : ""));
-  return card({ icon: app.icon, title: app.title, desc: app.description, meta, actions: [btn] });
+  const warn = (app.notices || []).map((n) => el("div", { className: "meta" }, `⏳ ${n}`));
+  return card({ icon: app.icon, title: app.title, desc: app.description, meta: el("div", {}, meta, ...warn), actions: [btn] });
 }
 
 async function install(app, btn) {
@@ -78,7 +79,8 @@ function installedCard(a) {
     await refreshInstalled();
     renderResults();
   };
-  const meta = el("div", { className: "meta" }, `v${a.version} · ${a.language || "?"} · ${a.source}` + (a.windowed ? "" : " · runs in background"));
+  const meta = el("div", { className: "meta" }, `v${a.version} · ${a.language || "?"} · ${a.source}` + (a.windowed ? "" : " · runs in background")
+    + (a.expiresAt ? ` · expires ${new Date(a.expiresAt).toLocaleString()}` : "") + (a.oneTime ? " · one-time app" : ""));
   return card({ icon: a.icon, title: a.title, desc: a.description, meta, actions: [run, rm] });
 }
 

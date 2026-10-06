@@ -34,7 +34,7 @@ handle("app:lookup", async (_e, input) => {
 handle("app:install", (e, spec) => bp.install(String(spec), (text) => e.sender.send("install:log", spec, text)));
 handle("app:uninstall", (_e, name) => bp.uninstall(String(name)));
 handle("app:run", (_e, name) => bp.run(String(name)));
-handle("app:installed", () => bp.installed());
+handle("app:installed", async () => { await bp.sweepExpired(); return bp.installed(); });
 handle("settings:get", () => ({ hasKey: bp.hasKey() }));
 handle("settings:saveKey", (_e, key) => bp.saveKey(String(key)));
 handle("link:open", (_e, spec) => {
