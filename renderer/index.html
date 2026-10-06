@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' https://raw.githubusercontent.com data:; style-src 'self'">
+<title>BananaPeel Store</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header>
+  <h1>🍌 BananaPeel Store</h1>
+  <nav>
+    <button class="tab active" data-tab="discover">Discover</button>
+    <button class="tab" data-tab="installed">Installed</button>
+    <button class="tab" data-tab="settings">Settings</button>
+  </nav>
+</header>
+<div id="banner" hidden></div>
+<main>
+  <section id="discover">
+    <form id="search">
+      <input id="q" type="search" placeholder="Search apps, or paste a GitHub repo (owner/repo or URL)" autocomplete="off" autofocus>
+      <button type="submit">Search</button>
+    </form>
+    <div id="results" class="grid"></div>
+    <p id="status" class="muted"></p>
+  </section>
+  <section id="installed" hidden><div id="installed-list" class="grid"></div></section>
+  <section id="settings" hidden>
+    <h2>Virus scanner</h2>
+    <p class="muted">Every app is virus-scanned by Cloudmersive before it's installed. Get a free key at portal.cloudmersive.com.</p>
+    <form id="key-form">
+      <input id="key" type="password" placeholder="Cloudmersive API key" autocomplete="off">
+      <button type="submit">Save key</button>
+    </form>
+    <p id="key-status" class="muted"></p>
+  </section>
+</main>
+<pre id="log" hidden></pre>
+<script src="renderer.js"></script>
+</body>
+</html>
