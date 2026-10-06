@@ -71,7 +71,13 @@ else
   say "Opening BananaPeel Store…"
   nohup "$WORK/node_modules/.bin/electron" "$WORK" >>"$LOG" 2>&1 &
 fi
+PID=$!
 disown
-sleep 2
+sleep 3
+if ! kill -0 "$PID" 2>/dev/null; then
+  echo
+  tail -n 25 "$LOG" 2>/dev/null
+  fail "BananaPeel Store closed right after starting. The log above is also in $LOG"
+fi
 echo
 echo "   BananaPeel Store is opening. You can close this window."
