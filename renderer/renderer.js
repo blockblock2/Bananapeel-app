@@ -3,6 +3,7 @@ const busy = new Set();
 let installedNames = new Set();
 let lastResults = [];
 let wallet = { coins: 0, owned: [] };
+let autodelete = true;
 
 async function refreshWallet() {
   const res = await window.store.wallet();
@@ -63,6 +64,11 @@ async function install(app, btn) {
     opts.code = await ask({ title: `${app.title} is locked`, text: "Enter the unlock code the author gave you.", input: "XXXX-XXXX-XXXX-XXXX", ok: "Unlock & install" });
     if (!opts.code) return;
   }
+  if (app.selfRemoves && autodelete) {
+    const choice = await ask({ title: `${app.title} can remove itself`, text: (app.notices || []).filter((n) => !/BananaCoins|locked/.test(n)).join(" · "), ok: "Let it", alt: "Keep it" });
+    if (!choice) return;
+    if (choice === "alt") opts.keep = true;
+  }
   if (app.price && !owned(app) && !(await ask({ title: `Buy ${app.title}?`, text: `It costs ${app.price} BananaCoins (pretend coins, not real money). You have ${wallet.coins} and only pay once.`, ok: `Buy for ${app.price} 🍌` }))) return;
   busy.add(app.spec);
   btn.disabled = true;
@@ -78,16 +84,18 @@ async function install(app, btn) {
 }
 
 // Electron has no window.prompt/confirm, so ask in a small dialog. Resolves to the typed text (or true), or null if cancelled.
-function ask({ title, text, input, ok = "OK" }) {
+function ask({ title, text, input, ok = "OK", alt }) {
   const dlg = $("ask"), box = $("ask-input");
   $("ask-title").textContent = title;
   $("ask-text").textContent = text || "";
   box.hidden = !input; box.value = ""; box.placeholder = input || "";
   $("ask-ok").textContent = ok;
+  $("ask-alt").hidden = !alt; $("ask-alt").textContent = alt || "";
   return new Promise((resolve) => {
     const done = (v) => { dlg.close(); resolve(v); };
     $("ask-form").onsubmit = (e) => { e.preventDefault(); done(input ? box.value.trim() || null : true); };
     $("ask-cancel").onclick = () => done(null);
+    $("ask-alt").onclick = () => done("alt");
     dlg.oncancel = (e) => { e.preventDefault(); done(null); };
     dlg.showModal();
     if (input) box.focus();
@@ -118,9 +126,16 @@ function installedCard(a) {
     await refreshInstalled();
     renderResults();
   };
+  const actions = [run, rm];
+  if ((a.expiresAt || a.oneTime) && !a.kept) {
+    const keep = el("button", {}, "Keep");
+    keep.title = "Stop this app from removing itself";
+    keep.onclick = async () => { const r = await window.store.keep(a.name); banner(r.ok ? `${a.title} will stay.` : r.error, !r.ok); refreshInstalled(); };
+    actions.push(keep);
+  }
   const meta = el("div", { className: "meta" }, `v${a.version} · ${a.language || "?"} · ${a.source}` + (a.windowed ? "" : " · runs in background")
     + (a.expiresAt ? ` · expires ${new Date(a.expiresAt).toLocaleString()}` : "") + (a.oneTime ? " · one-time app" : ""));
-  return card({ icon: a.icon, title: a.title, desc: a.description, meta, actions: [run, rm] });
+  return card({ icon: a.icon, title: a.title, desc: a.description, meta, actions });
 }
 
 // Looks like "owner/repo" or a github.com URL → install that repo directly.
@@ -138,9 +153,10 @@ async function search(query) {
 
 document.querySelectorAll(".tab").forEach((t) => t.addEventListener("click", () => {
   document.querySelectorAll(".tab").forEach((x) => x.classList.toggle("active", x === t));
-  for (const id of ["discover", "installed", "settings"]) $(id).hidden = id !== t.dataset.tab;
+  for (const id of ["discover", "installed", "account", "settings"]) $(id).hidden = id !== t.dataset.tab;
   if (t.dataset.tab === "installed") refreshInstalled();
-  if (t.dataset.tab === "settings") keyStatus();
+  if (t.dataset.tab === "settings") { keyStatus(); loadAutodelete(); }
+  if (t.dataset.tab === "account") loadAccount();
 }));
 
 $("search").addEventListener("submit", (e) => { e.preventDefault(); search($("q").value); });
@@ -160,3 +176,78 @@ $("key-form").addEventListener("submit", async (e) => {
 window.store.onLog((_spec, text) => { const l = $("log"); l.textContent += text; l.scrollTop = l.scrollHeight; });
 
 (async () => { await refreshInstalled(); await refreshWallet(); await search(""); })();
+
+// ---------- Settings: auto-delete
+async function loadAutodelete() {
+  const r = await window.store.account();
+  if (r.ok) { autodelete = r.data.autodelete; $("autodelete").checked = autodelete; }
+}
+$("autodelete").addEventListener("change", async (e) => {
+  const r = await window.store.setAutodelete(e.target.checked);
+  if (!r.ok) { banner(r.error, true); e.target.checked = !e.target.checked; return; }
+  autodelete = e.target.checked;
+  banner(autodelete ? "Apps can remove themselves again." : "No app will remove itself now.");
+});
+loadAutodelete();
+
+// ---------- Account
+async function loadAccount() {
+  const r = await window.store.account();
+  if (!r.ok) return banner(r.error, true);
+  const me = r.data.username;
+  $("acct-out").hidden = Boolean(me);
+  $("acct-in").hidden = !me;
+  $("acct-name").textContent = me ? `Signed in as @${me}` : "";
+  $("server-url").placeholder = r.data.serverUrl || "Using BananaPeel's default server";
+  if (me) loadUploads(me);
+  const g = await window.store.githubStatus();
+  $("gh-status").textContent = g.data?.signedIn ? "✔ A token is saved." : "No token saved.";
+}
+
+async function loadUploads(me) {
+  const r = await window.store.uploads();
+  const box = $("uploads-list");
+  if (!r.ok) { box.replaceChildren(el("p", { className: "muted" }, r.error)); return; }
+  box.replaceChildren(...(r.data.length ? r.data.map((name) => {
+    const pin = el("button", {}, "Change PIN");
+    pin.onclick = async () => {
+      const v = await ask({ title: `New PIN for ${name}`, text: "6–10 digits. The old PIN stops working.", input: "PIN", ok: "Change" });
+      if (!v) return;
+      const x = await window.store.setPin(name, v);
+      banner(x.ok ? "PIN changed." : x.error, !x.ok);
+    };
+    const rm = el("button", {}, "Remove");
+    rm.onclick = async () => {
+      if (!(await ask({ title: `Remove ${name}?`, text: "People who already installed it keep their copy.", ok: "Remove" }))) return;
+      const x = await window.store.unpublish(name);
+      banner(x.ok ? `Removed ${name}.` : x.error, !x.ok);
+      loadUploads(me);
+    };
+    return card({ title: name, desc: `Install name: @${me}/${name}`, meta: el("div"), actions: [pin, rm] });
+  }) : [el("p", { className: "muted" }, "Nothing uploaded yet.")]));
+}
+
+async function accountAction(kind) {
+  const user = $("acct-user").value.trim(), pass = $("acct-pass").value;
+  const res = kind === "signup" ? await window.store.signup(user, pass, $("acct-code").value.trim()) : await window.store.login(user, pass);
+  $("acct-pass").value = "";
+  banner(res.ok ? (kind === "signup" ? "Account created. You're signed in." : "Signed in.") : res.error, !res.ok);
+  loadAccount();
+}
+$("acct-form").addEventListener("submit", (e) => { e.preventDefault(); accountAction("login"); });
+$("acct-signup").addEventListener("click", () => accountAction("signup"));
+$("acct-logout").addEventListener("click", async () => { const r = await window.store.logout(); banner(r.ok ? "Signed out." : r.error, !r.ok); loadAccount(); });
+$("server-form").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const r = await window.store.setServer($("server-url").value.trim());
+  $("server-status").textContent = r.ok ? "✔ Server saved." : r.error;
+  if (r.ok) $("server-url").value = "";
+});
+$("gh-form").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const r = await window.store.githubSave($("gh-token").value);
+  $("gh-token").value = "";
+  banner(r.ok ? `GitHub token saved for ${r.data}.` : r.error, !r.ok);
+  loadAccount();
+});
+$("gh-clear").addEventListener("click", async () => { await window.store.githubClear(); banner("GitHub token removed."); loadAccount(); });

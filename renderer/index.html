@@ -13,6 +13,7 @@
   <nav>
     <button class="tab active" data-tab="discover">Discover</button>
     <button class="tab" data-tab="installed">Installed</button>
+    <button class="tab" data-tab="account">Account</button>
     <button class="tab" data-tab="settings">Settings</button>
   </nav>
 </header>
@@ -27,7 +28,37 @@
     <p id="status" class="muted"></p>
   </section>
   <section id="installed" hidden><div id="installed-list" class="grid"></div></section>
+  <section id="account" hidden>
+    <h2>BananaPeel account</h2>
+    <p class="muted">For private uploads: share an app with a PIN, no GitHub needed. People install it as <code>@you/app</code>.</p>
+    <div id="acct-out">
+      <form id="acct-form" class="stack">
+        <input id="acct-user" placeholder="Username" autocomplete="username">
+        <input id="acct-pass" type="password" placeholder="Password (8+ characters)" autocomplete="current-password">
+        <input id="acct-code" placeholder="Sign-up code (only if the server needs one)" autocomplete="off">
+        <div class="actions"><button type="submit" class="primary" id="acct-login">Sign in</button><button type="button" id="acct-signup">Create account</button></div>
+      </form>
+    </div>
+    <div id="acct-in" hidden>
+      <p><strong id="acct-name"></strong> <button id="acct-logout">Sign out</button></p>
+      <h3>Your uploads</h3>
+      <div id="uploads-list" class="grid"></div>
+      <p class="muted">To upload an app, run <code>bananapeel upload</code> inside its folder.</p>
+    </div>
+    <details><summary>Server</summary>
+      <form id="server-form"><input id="server-url" placeholder="https://your-server.workers.dev"><button type="submit">Save</button></form>
+      <p id="server-status" class="muted"></p>
+    </details>
+    <h2>GitHub</h2>
+    <p class="muted">A GitHub token makes the store's searches faster and more complete. It is stored encrypted on this computer and used only to search GitHub.
+      BananaPeel itself can't download private repos yet, so this does not unlock them.</p>
+    <form id="gh-form"><input id="gh-token" type="password" placeholder="GitHub token (no permissions needed)" autocomplete="off"><button type="submit">Save</button><button type="button" id="gh-clear">Remove</button></form>
+    <p id="gh-status" class="muted"></p>
+  </section>
   <section id="settings" hidden>
+    <h2>Apps that remove themselves</h2>
+    <label class="row"><input type="checkbox" id="autodelete"> Let apps remove themselves (expiring, one-time and score-based apps)</label>
+    <p class="muted">Turn this off and no app will remove itself. You're also asked before installing any app that does.</p>
     <h2>Virus scanner</h2>
     <p class="muted">Every app is virus-scanned by Cloudmersive before it's installed. Get a free key at portal.cloudmersive.com.</p>
     <form id="key-form">
@@ -42,7 +73,7 @@
     <h3 id="ask-title"></h3>
     <p id="ask-text" class="muted"></p>
     <input id="ask-input" autocomplete="off" hidden>
-    <div class="actions"><button value="cancel" type="button" id="ask-cancel">Cancel</button><button value="ok" class="primary" id="ask-ok">OK</button></div>
+    <div class="actions"><button value="cancel" type="button" id="ask-cancel">Cancel</button><button type="button" id="ask-alt" hidden></button><button value="ok" class="primary" id="ask-ok">OK</button></div>
   </form>
 </dialog>
 <pre id="log" hidden></pre>

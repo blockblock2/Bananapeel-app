@@ -65,3 +65,25 @@ test("@user/app is an account upload that needs a PIN, without a network call", 
   assert.equal(gh.isAccountSpec("@someone/cool-app"), true);
   assert.equal(gh.isAccountSpec("someone/cool-app"), false);
 });
+
+test("whoami checks a token with GitHub", async () => {
+  global.fetch = async (url, opts) => opts.headers.Authorization === "Bearer good_token_1234567890" ? { ok: true, status: 200, json: async () => ({ login: "ricardo" }) } : { ok: false, status: 401 };
+  assert.equal(await gh.whoami("good_token_1234567890"), "ricardo");
+  await assert.rejects(gh.whoami("bad_token_000000000000"), /didn't accept/);
+});
+
+test("a saved token is sent with GitHub searches", async () => {
+  let seen;
+  global.fetch = async (url, opts) => { if (String(url).includes("search/repositories")) seen = opts.headers.Authorization; return { ok: true, json: async () => ({ items: [] }) }; };
+  gh.setToken("saved_token_1234567890");
+  await gh.searchApps("");
+  gh.setToken(null);
+  assert.equal(seen, "Bearer saved_token_1234567890");
+});
+
+test("apps that remove themselves are flagged so the store can ask first", async () => {
+  global.fetch = async () => ({ ok: true, json: async () => ({ name: "t", main: "index.html", expires: "7d" }) });
+  assert.equal((await gh.toApp("a/b")).selfRemoves, true);
+  global.fetch = async () => ({ ok: true, json: async () => ({ name: "t", main: "index.html" }) });
+  assert.equal((await gh.toApp("a/b")).selfRemoves, false);
+});

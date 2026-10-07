@@ -9,7 +9,7 @@
   },
   "license": "MIT",
   "dependencies": {
-    "@blockblock2/bananapeel": "^0.9.1"
+    "@blockblock2/bananapeel": "^0.9.2"
   },
   "devDependencies": {
     "electron": "^33.0.0"

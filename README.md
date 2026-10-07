@@ -15,6 +15,12 @@ Then open **Settings** and paste your free [Cloudmersive](https://portal.cloudme
 - **Discover** searches GitHub for repos with the `bananapeel` topic, then keeps only those with a valid `bananapeel.json`. Set `GITHUB_TOKEN` to also include repos found by GitHub code search (`filename:bananapeel.json`) and to avoid rate limits.
 - **Installed** reads `~/.bananapeel/installed.json` (or `$BANANAPEEL_HOME`).
 
+## Account tab
+
+- **BananaPeel account:** sign up, sign in and out, and manage your private uploads (change a PIN, remove an upload). To upload, run `bananapeel upload` inside your app's folder. Passwords are handed to BananaPeel through the environment, never on a command line.
+- **GitHub token:** optional. Makes the store's GitHub searches faster and more complete. It's stored encrypted with your OS keychain and used only for searching. BananaPeel can't download private repos yet, so it doesn't unlock them.
+- **Settings → auto-delete:** apps that remove themselves (expiring, one-time, score-based) ask first, and you can switch that off for good.
+
 ## For app authors
 
 Add the **`bananapeel`** topic to your GitHub repo so it shows up in Discover. Without it, people can still install it by pasting `owner/repo`.

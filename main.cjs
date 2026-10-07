@@ -1,4 +1,5 @@
-const { app, BrowserWindow, ipcMain, shell } = require("electron");
+const { app, BrowserWindow, ipcMain, shell, safeStorage } = require("electron");
+const fs = require("node:fs");
 const path = require("node:path");
 const gh = require("./lib/github.cjs");
 const bp = require("./lib/bp.cjs");
@@ -32,7 +33,7 @@ handle("app:lookup", async (_e, input) => {
   return found;
 });
 handle("app:install", async (e, spec, opts) => {
-  await bp.install(String(spec), { code: opts?.code && String(opts.code), pin: opts?.pin && String(opts.pin) },
+  await bp.install(String(spec), { code: opts?.code && String(opts.code), pin: opts?.pin && String(opts.pin), keep: Boolean(opts?.keep) },
     (text) => e.sender.send("install:log", spec, text));
   // Reinstalling the store itself: close, then open the fresh copy.
   if (!bp.isStore(String(spec))) return { relaunching: false };
@@ -44,6 +45,37 @@ handle("app:uninstall", (_e, name) => bp.uninstall(String(name)));
 handle("app:run", (_e, name) => bp.run(String(name)));
 handle("app:installed", async () => { await bp.sweepExpired(); return bp.installed(); });
 handle("wallet:get", () => bp.wallet());
+// ---- account / uploads / preferences
+handle("account:get", () => bp.account());
+handle("account:login", (_e, u, p) => bp.login(String(u), String(p)));
+handle("account:signup", (_e, u, p, c) => bp.signup(String(u), String(p), c ? String(c) : ""));
+handle("account:logout", () => bp.logout());
+handle("account:uploads", () => bp.uploads());
+handle("account:unpublish", (_e, name) => bp.unpublish(String(name)));
+handle("account:setPin", (_e, name, pin) => bp.setPin(String(name), String(pin)));
+handle("account:setServer", (_e, url) => bp.setServer(String(url)));
+handle("app:keep", (_e, name) => bp.keep(String(name)));
+handle("settings:autodelete", (_e, on) => bp.setAutodelete(Boolean(on)));
+
+// ---- GitHub token: only used for the store's own GitHub searches, stored encrypted with the OS keychain
+const tokenFile = () => path.join(app.getPath("userData"), "github-token.bin");
+function loadToken() {
+  try {
+    if (!safeStorage.isEncryptionAvailable()) return;
+    gh.setToken(safeStorage.decryptString(fs.readFileSync(tokenFile())));
+  } catch { /* none saved yet */ }
+}
+handle("github:status", () => ({ signedIn: Boolean(process.env.GITHUB_TOKEN) || fs.existsSync(tokenFile()), canStore: safeStorage.isEncryptionAvailable() }));
+handle("github:save", async (_e, token) => {
+  token = String(token).trim();
+  if (!/^[\w-]{20,255}$/.test(token)) throw new Error("That doesn't look like a GitHub token.");
+  const login = await gh.whoami(token);
+  if (safeStorage.isEncryptionAvailable()) fs.writeFileSync(tokenFile(), safeStorage.encryptString(token), { mode: 0o600 });
+  gh.setToken(token); // without a keychain it only lasts until you close the store
+  return login;
+});
+handle("github:clear", () => { gh.setToken(null); fs.rmSync(tokenFile(), { force: true }); });
+
 handle("settings:get", () => ({ hasKey: bp.hasKey() }));
 handle("settings:saveKey", (_e, key) => bp.saveKey(String(key)));
 handle("link:open", (_e, spec) => {
@@ -52,6 +84,7 @@ handle("link:open", (_e, spec) => {
 });
 
 app.whenReady().then(() => {
+  loadToken();
   createWindow();
   app.on("activate", () => BrowserWindow.getAllWindows().length || createWindow());
 });
