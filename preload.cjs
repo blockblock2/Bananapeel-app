@@ -7,6 +7,7 @@ contextBridge.exposeInMainWorld("store", {
   uninstall: call("app:uninstall"),
   run: call("app:run"),
   installed: call("app:installed"),
+  wallet: call("wallet:get"),
   settings: call("settings:get"),
   saveKey: call("settings:saveKey"),
   openRepo: call("link:open"),

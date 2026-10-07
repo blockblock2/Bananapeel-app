@@ -13,3 +13,14 @@ test("installArgs rejects bad specs, codes and PINs", () => {
   assert.throws(() => installArgs("a/b", { code: "x; rm -rf /" }));
   assert.throws(() => installArgs("a/b", { pin: "12ab" }));
 });
+
+test("wallet reads BananaCoins from BananaPeel's config, defaulting to 100", () => {
+  const fs = require("node:fs"), os = require("node:os"), path = require("node:path");
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), "bp-wallet-"));
+  process.env.BANANAPEEL_HOME = home;
+  delete require.cache[require.resolve("../lib/bp.cjs")];
+  const { wallet } = require("../lib/bp.cjs");
+  assert.deepEqual(wallet(), { coins: 100, owned: [] });
+  fs.writeFileSync(path.join(home, "config.json"), JSON.stringify({ coins: 70, owned: ["A/B"] }));
+  assert.deepEqual(wallet(), { coins: 70, owned: ["a/b"] });
+});

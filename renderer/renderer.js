@@ -2,6 +2,14 @@ const $ = (id) => document.getElementById(id);
 const busy = new Set();
 let installedNames = new Set();
 let lastResults = [];
+let wallet = { coins: 0, owned: [] };
+
+async function refreshWallet() {
+  const res = await window.store.wallet();
+  if (res.ok) wallet = res.data;
+  $("coins").textContent = `🍌 ${wallet.coins}`;
+}
+const owned = (app) => wallet.owned.includes(app.spec.toLowerCase());
 
 function banner(msg, isError) {
   const b = $("banner");
@@ -27,13 +35,16 @@ function card({ icon, title, desc, meta, actions }) {
 
 function appCard(app) {
   const isInstalled = installedNames.has(app.name);
-  const btn = el("button", { className: "primary" }, busy.has(app.spec) ? "Installing…" : isInstalled ? "Reinstall" : "Download");
-  btn.disabled = busy.has(app.spec);
+  const pay = app.price && !owned(app);
+  const label = pay ? `Buy · ${app.price} 🍌` : isInstalled ? "Reinstall" : "Download";
+  const btn = el("button", { className: "primary" }, busy.has(app.spec) ? "Installing…" : label);
+  btn.disabled = busy.has(app.spec) || (pay && wallet.coins < app.price);
+  if (pay && wallet.coins < app.price) btn.title = `You have ${wallet.coins} 🍌, it costs ${app.price}. You get +10 every day.`;
   btn.onclick = () => install(app, btn);
   const repo = el("a", { href: "#", textContent: app.spec });
   repo.onclick = (e) => { e.preventDefault(); window.store.openRepo(app.spec); };
   const meta = el("div", { className: "meta" }, repo, (app.version ? ` · v${app.version}` : "") + (app.stars ? ` · ★ ${app.stars}` : ""));
-  const warn = (app.notices || []).map((n) => el("div", { className: "meta" }, `⏳ ${n}`));
+  const warn = (app.notices || []).filter((n) => !(app.price && owned(app) && n.includes("BananaCoins"))).map((n) => el("div", { className: "meta" }, `⏳ ${n}`));
   return card({ icon: app.icon, title: app.title, desc: app.description, meta: el("div", {}, meta, ...warn), actions: [btn] });
 }
 
@@ -52,7 +63,7 @@ async function install(app, btn) {
     opts.code = await ask({ title: `${app.title} is locked`, text: "Enter the unlock code the author gave you.", input: "XXXX-XXXX-XXXX-XXXX", ok: "Unlock & install" });
     if (!opts.code) return;
   }
-  if (app.price && !(await ask({ title: `Buy ${app.title}?`, text: `It costs ${app.price} BananaCoins (pretend coins, not real money). You only pay once.`, ok: `Buy for ${app.price} 🍌` }))) return;
+  if (app.price && !owned(app) && !(await ask({ title: `Buy ${app.title}?`, text: `It costs ${app.price} BananaCoins (pretend coins, not real money). You have ${wallet.coins} and only pay once.`, ok: `Buy for ${app.price} 🍌` }))) return;
   busy.add(app.spec);
   btn.disabled = true;
   btn.textContent = "Installing…";
@@ -61,7 +72,7 @@ async function install(app, btn) {
   const res = await window.store.install(app.spec, opts);
   busy.delete(app.spec);
   banner(res.ok ? `Installed ${app.title}.` : res.error, !res.ok);
-  await refreshInstalled();
+  await Promise.all([refreshInstalled(), refreshWallet()]);
   renderResults();
 }
 
@@ -147,4 +158,4 @@ $("key-form").addEventListener("submit", async (e) => {
 
 window.store.onLog((_spec, text) => { const l = $("log"); l.textContent += text; l.scrollTop = l.scrollHeight; });
 
-(async () => { await refreshInstalled(); await search(""); })();
+(async () => { await refreshInstalled(); await refreshWallet(); await search(""); })();

@@ -36,6 +36,7 @@ handle("app:install", (e, spec, opts) => bp.install(String(spec), { code: opts?.
 handle("app:uninstall", (_e, name) => bp.uninstall(String(name)));
 handle("app:run", (_e, name) => bp.run(String(name)));
 handle("app:installed", async () => { await bp.sweepExpired(); return bp.installed(); });
+handle("wallet:get", () => bp.wallet());
 handle("settings:get", () => ({ hasKey: bp.hasKey() }));
 handle("settings:saveKey", (_e, key) => bp.saveKey(String(key)));
 handle("link:open", (_e, spec) => {
