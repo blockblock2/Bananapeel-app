@@ -71,6 +71,7 @@ async function install(app, btn) {
   $("log").textContent = "";
   const res = await window.store.install(app.spec, opts);
   busy.delete(app.spec);
+  if (res.ok && res.data?.relaunching) return banner("Updated! Restarting BananaPeel Store…");
   banner(res.ok ? `Installed ${app.title}.` : res.error, !res.ok);
   await Promise.all([refreshInstalled(), refreshWallet()]);
   renderResults();

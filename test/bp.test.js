@@ -24,3 +24,17 @@ test("wallet reads BananaCoins from BananaPeel's config, defaulting to 100", () 
   fs.writeFileSync(path.join(home, "config.json"), JSON.stringify({ coins: 70, owned: ["A/B"] }));
   assert.deepEqual(wallet(), { coins: 70, owned: ["a/b"] });
 });
+
+test("isStore is true only for the installed copy of the store itself", () => {
+  const fs = require("node:fs"), os = require("node:os"), path = require("node:path");
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), "bp-store-"));
+  process.env.BANANAPEEL_HOME = home;
+  fs.writeFileSync(path.join(home, "installed.json"), JSON.stringify({
+    "bananapeel-store": { main: "start.sh", source: "blockblock2/Bananapeel-app" },
+    repro: { main: "repro.sh", source: "blockblock2/repro-app" },
+  }));
+  delete require.cache[require.resolve("../lib/bp.cjs")];
+  const { isStore } = require("../lib/bp.cjs");
+  assert.equal(isStore("blockblock2/bananapeel-app"), true);
+  assert.equal(isStore("blockblock2/repro-app"), false);
+});
