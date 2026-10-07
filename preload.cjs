@@ -12,6 +12,7 @@ contextBridge.exposeInMainWorld("store", {
   saveKey: call("settings:saveKey"),
   account: call("account:get"), login: call("account:login"), signup: call("account:signup"), logout: call("account:logout"),
   uploads: call("account:uploads"), unpublish: call("account:unpublish"), setPin: call("account:setPin"), setServer: call("account:setServer"),
+  pickFolder: call("upload:pick"), initFolder: call("upload:init"), upload: call("upload:send"),
   keep: call("app:keep"), setAutodelete: call("settings:autodelete"),
   githubStatus: call("github:status"), githubSave: call("github:save"), githubClear: call("github:clear"),
   openRepo: call("link:open"),

@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, shell, safeStorage } = require("electron");
+const { app, BrowserWindow, ipcMain, shell, safeStorage, dialog } = require("electron");
 const fs = require("node:fs");
 const path = require("node:path");
 const gh = require("./lib/github.cjs");
@@ -56,6 +56,17 @@ handle("account:setPin", (_e, name, pin) => bp.setPin(String(name), String(pin))
 handle("account:setServer", (_e, url) => bp.setServer(String(url)));
 handle("app:keep", (_e, name) => bp.keep(String(name)));
 handle("settings:autodelete", (_e, on) => bp.setAutodelete(Boolean(on)));
+
+// ---- upload: the folder comes from the native picker only, never from the page
+let pickedFolder = null;
+handle("upload:pick", async (e) => {
+  const r = await dialog.showOpenDialog(BrowserWindow.fromWebContents(e.sender), { title: "Choose your app's folder", properties: ["openDirectory"] });
+  if (r.canceled || !r.filePaths[0]) return null;
+  pickedFolder = r.filePaths[0];
+  return { folder: path.basename(pickedFolder), manifest: bp.readManifest(pickedFolder) };
+});
+handle("upload:init", async () => ({ manifest: await bp.initFolder(pickedFolder) }));
+handle("upload:send", (e, pin) => bp.upload(pickedFolder, String(pin), (text) => e.sender.send("install:log", "upload", text)));
 
 // ---- GitHub token: only used for the store's own GitHub searches, stored encrypted with the OS keychain
 const tokenFile = () => path.join(app.getPath("userData"), "github-token.bin");

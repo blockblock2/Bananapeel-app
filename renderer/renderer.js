@@ -251,3 +251,30 @@ $("gh-form").addEventListener("submit", async (e) => {
   loadAccount();
 });
 $("gh-clear").addEventListener("click", async () => { await window.store.githubClear(); banner("GitHub token removed."); loadAccount(); });
+
+// ---------- Upload an app folder
+$("upload-btn").addEventListener("click", async () => {
+  banner("");
+  if (!(await window.store.settings()).data?.hasKey) return banner("Add your Cloudmersive API key in Settings first: apps are virus-scanned before they're uploaded.", true);
+  const picked = await window.store.pickFolder();
+  if (!picked.ok) return banner(picked.error, true);
+  if (!picked.data) return; // cancelled
+  let manifest = picked.data.manifest;
+  if (!manifest) {
+    if (!(await ask({ title: "No bananapeel.json in this folder", text: `Make one for "${picked.data.folder}" now? You can edit it afterwards.`, ok: "Create it" }))) return;
+    const made = await window.store.initFolder();
+    if (!made.ok) return banner(made.error, true);
+    manifest = made.data.manifest;
+  }
+  const pin = await ask({ title: `Upload ${manifest.title} v${manifest.version || "?"}`, text: "Choose a 6–10 digit PIN. Anyone installing it will need the PIN.", input: "PIN", ok: "Scan & upload" });
+  if (!pin) return;
+  $("log").hidden = false; $("log").textContent = "";
+  banner(`Scanning and uploading ${manifest.title}…`);
+  $("upload-btn").disabled = true;
+  const res = await window.store.upload(pin);
+  $("upload-btn").disabled = false;
+  if (!res.ok) return banner(res.error, true);
+  banner(res.data.install ? `Uploaded! People install it with ${res.data.install} and the PIN.` : "Uploaded!");
+  const me = (await window.store.account()).data?.username;
+  if (me) loadUploads(me);
+});

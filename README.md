@@ -17,7 +17,7 @@ Then open **Settings** and paste your free [Cloudmersive](https://portal.cloudme
 
 ## Account tab
 
-- **BananaPeel account:** sign up, sign in and out, and manage your private uploads (change a PIN, remove an upload). To upload, run `bananapeel upload` inside your app's folder. Passwords are handed to BananaPeel through the environment, never on a command line.
+- **BananaPeel account:** sign up, sign in and out, and manage your private uploads (change a PIN, remove an upload). Use **Upload an app…** to pick your app's folder; it is virus-scanned, then uploaded behind a PIN you choose. Passwords are handed to BananaPeel through the environment, never on a command line.
 - **GitHub token:** optional. Makes the store's GitHub searches faster and more complete. It's stored encrypted with your OS keychain and used only for searching. BananaPeel can't download private repos yet, so it doesn't unlock them.
 - **Settings → auto-delete:** apps that remove themselves (expiring, one-time, score-based) ask first, and you can switch that off for good.
 

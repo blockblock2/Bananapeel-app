@@ -67,3 +67,47 @@ test("installArgs adds --keep when the person says the app must not remove itsel
   const { installArgs } = require("../lib/bp.cjs");
   assert.deepEqual(installArgs("a/b", { keep: true }), ["install", "a/b", "-y", "--keep"]);
 });
+
+test("upload: scans and uploads a folder with the PIN, and only accepts a real folder + PIN", async () => {
+  const log = [];
+  const server = http.createServer((req, res) => {
+    let body = "";
+    req.on("data", (c) => (body += c));
+    req.on("end", () => {
+      log.push({ url: req.url, auth: req.headers.authorization, body });
+      res.writeHead(200, { "content-type": "application/json" });
+      if (req.url === "/scan") return res.end(JSON.stringify({ CleanResult: true, FoundViruses: null }));
+      if (req.url.startsWith("/upload/file")) return res.end(JSON.stringify({ install: "@ricardo/snake" }));
+      res.end(JSON.stringify({ username: "ricardo", token: "tok123", ok: true }));
+    });
+  });
+  await new Promise((r) => server.listen(0, "127.0.0.1", r));
+  const base = `http://127.0.0.1:${server.address().port}`;
+  process.env.BANANAPEEL_HOME = fs.mkdtempSync(path.join(os.tmpdir(), "bp-up-"));
+  Object.assign(process.env, { BANANAPEEL_SERVER_URL: base, BANANAPEEL_SCAN_URL: base + "/scan", CLOUDMERSIVE_API_KEY: "test-key-123456" });
+  const bp = require("../lib/bp.cjs");
+  const folder = fs.mkdtempSync(path.join(os.tmpdir(), "bp-app-"));
+  try {
+    assert.equal(bp.readManifest(folder), null);
+    const made = await bp.initFolder(folder);           // `bananapeel init` in that folder
+    assert.ok(made && made.name);
+    fs.writeFileSync(path.join(folder, "index.html"), "<h1>hi</h1>");
+    fs.writeFileSync(path.join(folder, "bananapeel.json"), JSON.stringify({ name: "snake", version: "1.0.0", main: "index.html" }));
+    assert.equal(bp.readManifest(folder).name, "snake");
+
+    await assert.rejects(bp.upload(folder, "12ab"), /PINs/);
+    await assert.rejects(bp.upload(null, "482913"), /folder/);
+    await assert.rejects(bp.upload(folder, "482913"), /sign in/i);   // not signed in yet
+
+    await bp.login("ricardo", "correct-horse");
+    const r = await bp.upload(folder, "482913");
+    assert.equal(r.install, "@ricardo/snake");
+    assert.ok(log.some((l) => l.url === "/scan"), "scanned before uploading");
+    const start = log.find((l) => l.url === "/upload/start");
+    assert.equal(JSON.parse(start.body).pin, "482913");
+    assert.equal(JSON.parse(start.body).manifest.name, "snake");
+  } finally {
+    server.close();
+    for (const k of ["BANANAPEEL_SERVER_URL", "BANANAPEEL_SCAN_URL", "CLOUDMERSIVE_API_KEY"]) delete process.env[k];
+  }
+});
