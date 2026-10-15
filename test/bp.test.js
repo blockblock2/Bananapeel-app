@@ -14,15 +14,35 @@ test("installArgs rejects bad specs, codes and PINs", () => {
   assert.throws(() => installArgs("a/b", { pin: "12ab" }));
 });
 
-test("wallet reads BananaCoins from BananaPeel's config, defaulting to 100", () => {
+test("wallet reads BananaCoins from BananaPeel's config when signed out, defaulting to 100", async () => {
   const fs = require("node:fs"), os = require("node:os"), path = require("node:path");
   const home = fs.mkdtempSync(path.join(os.tmpdir(), "bp-wallet-"));
   process.env.BANANAPEEL_HOME = home;
   delete require.cache[require.resolve("../lib/bp.cjs")];
   const { wallet } = require("../lib/bp.cjs");
-  assert.deepEqual(wallet(), { coins: 100, owned: [] });
+  assert.deepEqual(await wallet(), { coins: 100, owned: [], shared: false });
   fs.writeFileSync(path.join(home, "config.json"), JSON.stringify({ coins: 70, owned: ["A/B"] }));
-  assert.deepEqual(wallet(), { coins: 70, owned: ["a/b"] });
+  assert.deepEqual(await wallet(), { coins: 70, owned: ["a/b"], shared: false });
+});
+
+test("wallet uses the shared BananaPeel wallet when signed in, keeping apps bought on this computer", async () => {
+  const fs = require("node:fs"), os = require("node:os"), path = require("node:path");
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), "bp-wallet-"));
+  process.env.BANANAPEEL_HOME = home;
+  fs.writeFileSync(path.join(home, "config.json"), JSON.stringify({ coins: 70, owned: ["A/B"], account: { username: "u", token: "t" }, serverUrl: "https://bp.test" }));
+  const realFetch = global.fetch;
+  let asked = null;
+  global.fetch = async (url, init) => { asked = { url, auth: init.headers.Authorization }; return new Response(JSON.stringify({ coins: 40, owned: ["c/d"] })); };
+  try {
+    delete require.cache[require.resolve("../lib/bp.cjs")];
+    const { wallet } = require("../lib/bp.cjs");
+    assert.deepEqual(await wallet(), { coins: 40, owned: ["a/b", "c/d"], shared: true });
+    assert.deepEqual(asked, { url: "https://bp.test/wallet", auth: "Bearer t" });
+    global.fetch = async () => { throw new Error("offline"); };
+    assert.deepEqual(await wallet(), { coins: 70, owned: ["a/b"], shared: false });
+  } finally {
+    global.fetch = realFetch;
+  }
 });
 
 test("isStore is true only for the installed copy of the store itself", () => {
