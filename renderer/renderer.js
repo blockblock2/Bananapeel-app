@@ -8,8 +8,10 @@ let autodelete = true;
 async function refreshWallet() {
   const res = await window.store.wallet();
   if (res.ok) wallet = res.data;
-  $("coins").textContent = `🍌 ${wallet.coins}`;
+  $("coins").textContent = wallet.admin ? `🍌 ${wallet.coins} 👑` : `🍌 ${wallet.coins}`;
+  $("coins").title = wallet.admin ? "Admin: buying never costs you coins" : "";
 }
+const canAfford = (price) => wallet.admin || wallet.coins >= price;
 const owned = (app) => wallet.owned.includes(app.spec.toLowerCase());
 
 function banner(msg, isError) {
@@ -39,8 +41,8 @@ function appCard(app) {
   const pay = app.price && !owned(app);
   const label = pay ? `Buy · ${app.price} 🍌` : isInstalled ? "Reinstall" : "Download";
   const btn = el("button", { className: "primary" }, busy.has(app.spec) ? "Installing…" : label);
-  btn.disabled = busy.has(app.spec) || (pay && wallet.coins < app.price);
-  if (pay && wallet.coins < app.price) btn.title = `You have ${wallet.coins} 🍌, it costs ${app.price}. You get +10 every day.`;
+  btn.disabled = busy.has(app.spec) || (pay && !canAfford(app.price));
+  if (pay && !canAfford(app.price)) btn.title = `You have ${wallet.coins} 🍌, it costs ${app.price}. You get +10 every day.`;
   btn.onclick = () => install(app, btn);
   const repo = el("a", { href: "#", textContent: app.spec });
   repo.onclick = (e) => { e.preventDefault(); window.store.openRepo(app.spec); };
