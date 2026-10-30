@@ -58,3 +58,11 @@ test("isStore is true only for the installed copy of the store itself", () => {
   assert.equal(isStore("blockblock2/bananapeel-app"), true);
   assert.equal(isStore("blockblock2/repro-app"), false);
 });
+
+test("dmgArgs builds a safe bananapeel dmg command", () => {
+  const { dmgArgs } = require("../lib/bp.cjs");
+  assert.deepEqual(dmgArgs("blockblock2/fromturbo-app"), ["dmg", "blockblock2/fromturbo-app", "-y"]);
+  assert.deepEqual(dmgArgs("a/b", { code: "ABCD-1234-EFGH-5678" }), ["dmg", "a/b", "-y", "--code=ABCD-1234-EFGH-5678"]);
+  assert.throws(() => dmgArgs("nope"));
+  assert.throws(() => dmgArgs("a/b", { code: "x; rm -rf /" }));
+});

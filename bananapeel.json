@@ -1,7 +1,7 @@
 {
   "name": "bananapeel-store",
   "title": "BananaPeel Store",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Browse apps people share on GitHub and install them with one click — every one virus-scanned first.",
   "main": "start.sh",
   "icon": "icon.png",

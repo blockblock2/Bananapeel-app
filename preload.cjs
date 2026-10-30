@@ -4,6 +4,7 @@ contextBridge.exposeInMainWorld("store", {
   search: call("catalog:search"),
   lookup: call("app:lookup"),
   install: call("app:install"),
+  dmg: call("app:dmg"),
   uninstall: call("app:uninstall"),
   run: call("app:run"),
   installed: call("app:installed"),

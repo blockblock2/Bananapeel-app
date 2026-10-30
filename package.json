@@ -1,6 +1,6 @@
 {
   "name": "bananapeel-store",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "A desktop app store for BananaPeel: browse compatible apps, or paste a GitHub repo, and install with one click.",
   "main": "main.cjs",
   "scripts": {
@@ -9,7 +9,7 @@
   },
   "license": "MIT",
   "dependencies": {
-    "@blockblock2/bananapeel": "^0.10.0"
+    "@blockblock2/bananapeel": "^0.11.0"
   },
   "devDependencies": {
     "electron": "^33.0.0"

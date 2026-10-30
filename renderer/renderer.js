@@ -4,6 +4,7 @@ let installedNames = new Set();
 let lastResults = [];
 let wallet = { coins: 0, owned: [] };
 let autodelete = true;
+let isMac = false;
 
 async function refreshWallet() {
   const res = await window.store.wallet();
@@ -44,11 +45,20 @@ function appCard(app) {
   btn.disabled = busy.has(app.spec) || (pay && !canAfford(app.price));
   if (pay && !canAfford(app.price)) btn.title = `You have ${wallet.coins} 🍌, it costs ${app.price}. You get +10 every day.`;
   btn.onclick = () => install(app, btn);
+  const actions = [btn];
+  // Apps that allow it can also be made into a normal Mac .dmg (drag to Applications).
+  if (app.dmg && isMac && !app.account) {
+    const dmg = el("button", {}, busy.has(`dmg:${app.spec}`) ? "Making DMG…" : "💿 Download DMG");
+    dmg.title = "Virus-scan it and build a .dmg in your Downloads folder";
+    dmg.disabled = busy.has(`dmg:${app.spec}`) || (pay && !canAfford(app.price));
+    dmg.onclick = () => downloadDmg(app, dmg);
+    actions.push(dmg);
+  }
   const repo = el("a", { href: "#", textContent: app.spec });
   repo.onclick = (e) => { e.preventDefault(); window.store.openRepo(app.spec); };
   const meta = el("div", { className: "meta" }, repo, (app.version ? ` · v${app.version}` : "") + (app.stars ? ` · ★ ${app.stars}` : ""));
   const warn = (app.notices || []).filter((n) => !(app.price && owned(app) && n.includes("BananaCoins"))).map((n) => el("div", { className: "meta" }, `⏳ ${n}`));
-  return card({ icon: app.icon, title: app.title, desc: app.description, meta: el("div", {}, meta, ...warn), actions: [btn] });
+  return card({ icon: app.icon, title: app.title, desc: app.description, meta: el("div", {}, meta, ...warn), actions });
 }
 
 async function install(app, btn) {
@@ -82,6 +92,31 @@ async function install(app, btn) {
   if (res.ok && res.data?.relaunching) return banner("Updated! Restarting BananaPeel Store…");
   banner(res.ok ? `Installed ${app.title}.` : res.error, !res.ok);
   await Promise.all([refreshInstalled(), refreshWallet()]);
+  renderResults();
+}
+
+async function downloadDmg(app, btn) {
+  if (!(await window.store.settings()).data?.hasKey) {
+    banner("Add your Cloudmersive API key in Settings first — apps are virus-scanned before they're packed.", true);
+    return;
+  }
+  banner("");
+  const opts = {};
+  if (app.locked) {
+    opts.code = await ask({ title: `${app.title} is locked`, text: "Enter the unlock code the author gave you.", input: "XXXX-XXXX-XXXX-XXXX", ok: "Unlock & make DMG" });
+    if (!opts.code) return;
+  }
+  if (app.price && !owned(app) && !(await ask({ title: `Buy ${app.title}?`, text: `It costs ${app.price} BananaCoins (pretend coins, not real money). You have ${wallet.coins} and only pay once.`, ok: `Buy for ${app.price} 🍌` }))) return;
+  const key = `dmg:${app.spec}`;
+  busy.add(key);
+  btn.disabled = true;
+  btn.textContent = "Making DMG…";
+  $("log").hidden = false;
+  $("log").textContent = "";
+  const res = await window.store.dmg(app.spec, opts);
+  busy.delete(key);
+  banner(res.ok ? `Made ${res.data?.file || "the DMG"} in Downloads. It's opening now: drag ${app.title} onto Applications.` : res.error, !res.ok);
+  await refreshWallet();
   renderResults();
 }
 
@@ -177,7 +212,10 @@ $("key-form").addEventListener("submit", async (e) => {
 
 window.store.onLog((_spec, text) => { const l = $("log"); l.textContent += text; l.scrollTop = l.scrollHeight; });
 
-(async () => { await refreshInstalled(); await refreshWallet(); await search(""); })();
+(async () => {
+  isMac = Boolean((await window.store.settings()).data?.mac);
+  await refreshInstalled(); await refreshWallet(); await search("");
+})();
 
 // ---------- Settings: auto-delete
 async function loadAutodelete() {

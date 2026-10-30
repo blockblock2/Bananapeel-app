@@ -41,6 +41,8 @@ handle("app:install", async (e, spec, opts) => {
   setTimeout(() => app.quit(), 800); // let the window show "Restarting…" first
   return { relaunching: true };
 });
+handle("app:dmg", (e, spec, opts) => bp.makeDmg(String(spec), { code: opts?.code && String(opts.code), pin: opts?.pin && String(opts.pin) },
+  (text) => e.sender.send("install:log", spec, text)));
 handle("app:uninstall", (_e, name) => bp.uninstall(String(name)));
 handle("app:run", (_e, name) => bp.run(String(name)));
 handle("app:installed", async () => { await bp.sweepExpired(); return bp.installed(); });
@@ -87,7 +89,7 @@ handle("github:save", async (_e, token) => {
 });
 handle("github:clear", () => { gh.setToken(null); fs.rmSync(tokenFile(), { force: true }); });
 
-handle("settings:get", () => ({ hasKey: bp.hasKey() }));
+handle("settings:get", () => ({ hasKey: bp.hasKey(), mac: process.platform === "darwin" }));
 handle("settings:saveKey", (_e, key) => bp.saveKey(String(key)));
 handle("link:open", (_e, spec) => {
   if (!gh.parseSpec(spec)) throw new Error("Bad repo.");
